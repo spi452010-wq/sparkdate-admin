@@ -117,7 +117,7 @@ describe('pages (mock API)', () => {
     expect(await screen.findAllByText('Diya Mehta')).toHaveLength(2);
     expect(screen.queryByText('Ananya Iyer')).not.toBeInTheDocument();
     // one request per settled term, not per keystroke
-    expect(spy.mock.calls.map((c) => c[0]?.q)).toEqual([undefined, 'diya']);
+    expect(spy.mock.calls.filter((c) => c[0]?.status !== 'unlinked').map((c) => c[0]?.q)).toEqual([undefined, 'diya']);
   });
   it('payments: event filter and URL params restore state', async () => {
     const api = await signedIn(); const spy = vi.spyOn(api, 'listPayments');

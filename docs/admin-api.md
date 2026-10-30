@@ -46,8 +46,16 @@ Planned: `GET /admin/reports?status=`, `POST /admin/reports/{id}/resolve { actio
 Item: `{ bookingId, status (booking), refund: { status, reason?, requestedAt?, decidedAt?, rejectReason?, playOrderId?, auto? }, amountInPaise, playOrderId?, user: { id, fullName|null, phone|null }, event: { id, title?, startsAt? } }`.
 Approve/reject are allowed when booking `status = refund_requested` and `refund.status` is `requested` or `failed`; otherwise 409 `REFUND_NOT_PENDING`. Also 409 `PAYMENT_NOT_FOUND`.
 
-## 7. Google Play payments ✅ (admin only, read-only)
-`GET /admin/payments?status=verified|refunded|refund_failed|voided&userId=&eventId=&q=&page=&limit=100` → `{ items, page, limit, total }`; item `{ id, userId, user: { id, fullName|null, phone|null }, bookingId|null, kind: ticket|chat_pass, productId, orderId?, amountInPaise, status, acknowledged, createdAt, refundedAt? }`. `purchaseToken` is never returned.
+## 7. Google Play payments ✅ (admin only)
+`GET /admin/payments?status=verified|unlinked|refunded|refund_failed|voided&userId=&eventId=&q=&page=&limit=100` → `{ items, page, limit, total }`; item `{ id, userId, user: { id, fullName|null, phone|null }, bookingId|null, kind: ticket|chat_pass, productId, orderId?, amountInPaise, status, acknowledged, createdAt, refundedAt?, flaggedAt?, ackDeadline? }`. `purchaseToken` is never returned.
+
+### Link an unlinked purchase (admin)
+`POST /admin/payments/:id/link` body `{ bookingId }` (strict, ObjectId), CSRF → `{ status: 'confirmed'|'pending', booking }`. The booking is confirmed, then the purchase is acknowledged with Google Play.
+- UI: "Link to booking" on `unlinked` rows (admin only) → dialog listing the user's pending/expired/cancelled bookings for events with the same `playProductId` (found via `GET /admin/events/:id/bookings`, since there is no bookings-by-user endpoint), or a manual booking ID (24-hex) → confirm → toast. Invalidates payments, stats, events and bookings.
+- Deadline: `ackDeadline` when present, else estimated as `createdAt + 3 days` (labelled "est."; for unlinked rows `createdAt` is the webhook time, so it's approximate). Countdown; red "Urgent" under 24 h.
+- Nav badge and dashboard tile: unlinked count from `GET /admin/payments?status=unlinked` (`total`).
+- Errors handled: 409 `PAYMENT_NOT_UNLINKED` (list refreshed), 409 `BOOKING_MISMATCH` (doc only), 404 `BOOKING_NOT_FOUND`, 400 `PRODUCT_MISMATCH`, 409 `BOOKING_NOT_PENDING`, 409 `PURCHASE_ALREADY_USED`, 409 `EVENT_FULL_REFUNDED`, 400 `PURCHASE_INVALID`, 503 `PLAY_UNAVAILABLE`.
+- Doc vs server (sparkdate-api e824208): the server never returns `BOOKING_MISMATCH` (wrong user → 404 `BOOKING_NOT_FOUND`, wrong product → 400 `PRODUCT_MISMATCH`, wrong status → 409 `BOOKING_NOT_PENDING`); it also accepts `cancelled` bookings; `status` can be `pending` (UPI); `ackDeadline` is not in `paymentOut` yet.
 
 ### Search, filters and URL state (refunds and payments)
 - `q`: 1-80 chars after trim; case-insensitive plain-text match on the user's **name, phone or email** (not order/product ID); at most 200 matching users. The panel debounces typing (300 ms) and keeps it in the URL (`?q=`), like Users/Events.

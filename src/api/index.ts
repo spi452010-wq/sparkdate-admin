@@ -1,6 +1,6 @@
 import { ApiError, http } from './http';
 import { createMockApi } from './mock';
-import type { AdminUser, AppUser, Booking, DashboardStats, EventInput, EventPatch, EventStatus, Paginated, CancelEventResult, PaymentStatus, PlayPayment, RefundItem, RefundStatus, Report, ReportStatus, SpeedEvent, VerificationStatus } from './types';
+import type { AdminUser, AppUser, Booking, DashboardStats, EventInput, EventPatch, EventStatus, Paginated, CancelEventResult, LinkPaymentResult, PaymentStatus, PlayPayment, RefundItem, RefundStatus, Report, ReportStatus, SpeedEvent, VerificationStatus } from './types';
 
 export interface AdminApi {
   /** true for the in-memory mock; false for the real backend. */
@@ -24,6 +24,7 @@ export interface AdminApi {
   rejectRefund(bookingId: string, reason: string): Promise<RefundItem>;
   listPayments(f?: { status?: PaymentStatus; userId?: string; eventId?: string; q?: string }): Promise<Paginated<PlayPayment>>;
   cancelEvent(id: string): Promise<CancelEventResult>;
+  linkPayment(paymentId: string, bookingId: string): Promise<LinkPaymentResult>;
 }
 
 const qs = (p: Record<string, string | undefined>) => {
@@ -55,6 +56,7 @@ export const httpApi: AdminApi = {
   rejectRefund: (id, reason) => http(`/admin/refunds/${e(id)}/reject`, json('POST', { reason })),
   listPayments: (f = {}) => http(`/admin/payments${qs({ status: f.status, userId: f.userId, eventId: f.eventId, q: f.q, limit: '100' })}`),
   cancelEvent: (id) => http(`/admin/events/${e(id)}/cancel`, json('POST')),
+  linkPayment: (id, bookingId) => http(`/admin/payments/${e(id)}/link`, json('POST', { bookingId })),
   // No admin reports API yet: page shows "Coming soon" on the real API.
   listReports: notAvailable, resolveReport: notAvailable,
 };

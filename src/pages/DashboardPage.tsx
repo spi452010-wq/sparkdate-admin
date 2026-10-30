@@ -19,6 +19,7 @@ export function DashboardPage() {
 function AdminDashboard() {
   const api = useApi();
   const q = useQuery({ queryKey: ['stats'], queryFn: () => api.stats() });
+  const unlinked = useQuery({ queryKey: ['payments', 'unlinked-count'], queryFn: () => api.listPayments({ status: 'unlinked' }) });
   return (
     <>
       <h1>Dashboard</h1>
@@ -26,6 +27,7 @@ function AdminDashboard() {
         ['Users', s.totalUsers, '/users'], ['Pending verifications', s.pendingVerifications, '/users?verification=pending'],
         ['Published events', s.publishedEvents, '/events?status=published'], ['Live events', s.liveEvents, '/events?status=live'],
         ['Open reports', api.mock ? s.openReports : 'Soon', '/reports'], ['Pending refunds', s.pendingRefunds, '/refunds'],
+        ['Unlinked Play purchases', unlinked.data?.total ?? '-', '/payments?status=unlinked'],
       ]} />}</QueryView>
     </>
   );

@@ -1,5 +1,6 @@
+import { useQuery } from '@tanstack/react-query';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
+import { useApi, useAuth } from '../auth/AuthContext';
 import { USE_MOCK } from '../api';
 import { Button } from './ui';
 
@@ -20,9 +21,17 @@ export function Layout() {
       <nav className="sidenav" aria-label="Main">
         <NavLink to="/" end>Dashboard</NavLink>
         <NavLink to="/events">Events</NavLink>
-        {isAdmin ? <><NavLink to="/users">Users</NavLink><NavLink to="/reports">Reports</NavLink><NavLink to="/refunds">Refunds</NavLink><NavLink to="/payments">Play purchases</NavLink></> : null}
+        {isAdmin ? <><NavLink to="/users">Users</NavLink><NavLink to="/reports">Reports</NavLink><NavLink to="/refunds">Refunds</NavLink><NavLink to="/payments">Play purchases<UnlinkedBadge /></NavLink></> : null}
       </nav>
       <main id="main" className="content"><Outlet /></main>
     </div>
   );
+}
+
+/** Admin-only: count of Play purchases with no booking (GET /admin/payments?status=unlinked). */
+function UnlinkedBadge() {
+  const api = useApi();
+  const q = useQuery({ queryKey: ['payments', 'unlinked-count'], queryFn: () => api.listPayments({ status: 'unlinked' }), staleTime: 60_000, refetchInterval: 5 * 60_000 });
+  const n = q.data?.total ?? 0;
+  return n > 0 ? <> <span className="badge badge-danger" aria-label={`${n} unlinked`}>{n}</span></> : null;
 }
