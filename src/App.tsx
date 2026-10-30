@@ -27,8 +27,8 @@ export function AppRoutes() {
         <Route path="events/:id/edit" element={<EventEditPage />} />
         <Route path="users" element={adminOnly(<UsersPage />)} />
         <Route path="reports" element={adminOnly(<ComingSoon title="Reports" sprint="Sprint 2"><ReportsPage /></ComingSoon>)} />
-        <Route path="refunds" element={adminOnly(<ComingSoon title="Refunds" sprint="Sprint 4"><RefundsPage /></ComingSoon>)} />
-        <Route path="payments" element={adminOnly(<ComingSoon title="Play purchases" sprint="Sprint 4"><PaymentsPage /></ComingSoon>)} />
+        <Route path="refunds" element={adminOnly(<RefundsPage />)} />
+        <Route path="payments" element={adminOnly(<PaymentsPage />)} />
         <Route path="*" element={<EmptyState title="Page not found" />} />
       </Route>
     </Routes>

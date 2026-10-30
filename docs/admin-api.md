@@ -1,6 +1,6 @@
 # SparkDate Admin Panel: API contract used
 
-Source of truth: `docs/api/AUTH_PROFILE_MEDIA.md` and `services/api`. Base `/api/v1`. Errors `{ error: { code, message, details? } }`.
+Source of truth: `docs/api/AUTH_PROFILE_MEDIA.md`, `docs/api/SPRINT2_API.md` and `services/api` (sparkdate-api repo). Base `/api/v1`. Errors `{ error: { code, message, details? } }`.
 Legend: ✅ live in backend · ⏳ not yet (panel shows "coming soon" on the real API; mock only).
 
 ## 1. Admin web session ✅
@@ -20,7 +20,7 @@ Unsafe methods send `X-CSRF-Token` (= `csrf_token`), else 403 `CSRF_INVALID`. Lo
 `selfieUrl` is signed for 5 min (photos 15 min) and used directly in `<img>`. The list refetches every 4 min and on image `error`.
 
 ## 3. Dashboard ✅ (admin)
-`GET /admin/stats` → `{ totalUsers, pendingVerifications, publishedEvents, liveEvents, openReports, pendingRefunds }` (last two 0 until Sprints 2/4; shown as "Soon"). Hosts don't call it.
+`GET /admin/stats` → `{ totalUsers, pendingVerifications, publishedEvents, liveEvents, openReports, pendingRefunds }` (`openReports` is 0 until a reports API exists, shown as "Soon"; `pendingRefunds` is live). Hosts don't call it.
 
 ## 4. Events ✅ (admin, host; hosts only their own)
 | GET | /admin/events?status= | `{ items, total }` |
@@ -31,13 +31,29 @@ Unsafe methods send `X-CSRF-Token` (= `csrf_token`), else 403 `CSRF_INVALID`. Lo
 
 Event `{ id, title, description, startsAt, endsAt?, roundMinutes, priceInPaise, playProductId|null, status, capacity{male,female}, booked{male,female} }`.
 Rules mirrored in the form: total capacity ≤ 300, `playProductId` required when `priceInPaise > 0` (e.g. `event_ticket_199`), start in the future on create.
-Errors: 409 `CAPACITY_BELOW_BOOKED`, 409 `EVENT_LOCKED` (live/ended: no Edit button), 409 `INVALID_STATUS_TRANSITION`, 404 for another host's event.
+| POST | /admin/events/{id}/cancel | admin only → `{ id, status, summary: { cancelledPending, cancelledFree, refunded, refundFailed } }`; safe to re-run; failed refunds retried by the server |
 
-## 5. Reports ⏳ (Sprint 2)
-Planned: `GET /admin/reports?status=`, `POST /admin/reports/{id}/resolve { action: dismiss|block_user }`.
+Errors: 409 `USE_CANCEL_ENDPOINT` (PATCH to cancelled when bookings exist), 409 `CAPACITY_BELOW_BOOKED`, 409 `EVENT_LOCKED` (live/ended: no Edit button), 409 `INVALID_STATUS_TRANSITION`, 404 for another host's event.
 
-## 6. Refund requests ⏳ (Sprint 4, Google Play)
-Planned: `GET /admin/refunds?status=`, `POST /admin/refunds/{id}/approve` (backend issues the Play refund) and `/reject`.
+## 5. Reports ⏳ (no admin API yet)
+Planned: `GET /admin/reports?status=`, `POST /admin/reports/{id}/resolve { action: dismiss|block_user }`. Real API: "Coming soon".
 
-## 7. Google Play purchases ⏳ (Sprint 4, read-only)
-Planned: `GET /admin/payments?q=` → items with `orderId, productId (event_ticket_199, chat_pass_monthly…), purchaseState, amountInPaise`.
+## 6. Refunds ✅ (admin only; Google Play)
+| GET | /admin/refunds?status=requested\|processing\|processed\|rejected\|failed&page=&limit=100 | `{ items, page, limit, total }` |
+| POST | /admin/refunds/{bookingId}/approve | calls Play `orders.refund`; → item with `refund.status: processed` (or 503 `PLAY_UNAVAILABLE`, refund then `failed`, can be retried) |
+| POST | /admin/refunds/{bookingId}/reject | `{ reason }` (3-300 chars, final) → item with `refund.status: rejected` |
+
+Item: `{ bookingId, status (booking), refund: { status, reason?, requestedAt?, decidedAt?, rejectReason?, playOrderId?, auto? }, amountInPaise, playOrderId?, user: { id, fullName?, phone? }, event: { id, title?, startsAt? } }`.
+Approve/reject are allowed when booking `status = refund_requested` and `refund.status` is `requested` or `failed`; otherwise 409 `REFUND_NOT_PENDING`. Also 409 `PAYMENT_NOT_FOUND`.
+
+## 7. Google Play payments ✅ (admin only, read-only)
+`GET /admin/payments?status=verified|refunded|refund_failed|voided&userId=&page=&limit=100` → `{ items, page, limit, total }`; item `{ id, userId, bookingId|null, kind: ticket|chat_pass, productId, orderId?, amountInPaise, status, acknowledged, createdAt, refundedAt? }`. `purchaseToken` is never returned.
+
+## Idempotency
+`Idempotency-Key` is required only on app routes (`POST /bookings`, `/payments/play/verify`, `/bookings/:id/refund-request`). Admin POSTs use CSRF only, so the panel doesn't send it.
+
+## Known contract gaps
+- `SPRINT2_API.md` lists `eventId` as a payments filter, but the route only reads `status` and `userId`, so `eventId` would be silently ignored. The panel does not send it.
+- Payments have no text search (order ID / product) and no user name; the panel shows the user ID.
+- Refund/payment lists don't take `q`; only status (and userId) filters.
+- No admin reports API yet.

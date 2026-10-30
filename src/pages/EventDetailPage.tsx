@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { useApi } from '../auth/AuthContext';
+import { useApi, useAuth } from '../auth/AuthContext';
+import { ConfirmDialog } from '../components/Modal';
 import { QueryView } from '../components/QueryView';
 import { Table } from '../components/Table';
 import { Button, Notice, StatusBadge } from '../components/ui';
@@ -14,8 +16,16 @@ export function EventDetailPage() {
   const ev = useQuery({ queryKey: ['event', id], queryFn: () => api.getEvent(id) });
   const bk = useQuery({ queryKey: ['event', id, 'bookings'], queryFn: () => api.listEventBookings(id) });
   const publish = useMutation({ mutationFn: (e: SpeedEvent) => api.updateEvent(e.id, { status: 'published' }), onSuccess: (e) => { qc.setQueryData(['event', id], e); qc.invalidateQueries({ queryKey: ['events'] }); } });
+  const { user } = useAuth();
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const cancel = useMutation({ mutationFn: () => api.cancelEvent(id),
+    onSuccess: () => { setConfirmCancel(false); ['event', 'events', 'stats', 'refunds', 'payments'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })); },
+    onError: () => setConfirmCancel(false) });
+  const s = cancel.data?.summary;
   return (
     <>
+      {s ? <Notice>{`Event cancelled. ${s.refunded} paid booking(s) refunded through Google Play, ${s.cancelledFree} free booking(s) and ${s.cancelledPending} seat hold(s) cancelled.`}{s.refundFailed ? ` ${s.refundFailed} refund(s) failed and will be retried automatically.` : ''}</Notice> : null}
+      {cancel.isError ? <Notice kind="error">{(cancel.error as Error).message}</Notice> : null}
       {saved ? <Notice>Event saved.</Notice> : null}
       {publish.isError ? <Notice kind="error">{(publish.error as Error).message}</Notice> : null}
       <QueryView query={ev}>{(e) => (
@@ -25,6 +35,7 @@ export function EventDetailPage() {
             <div className="row">
               {e.status === 'draft' ? <Button loading={publish.isPending} onClick={() => publish.mutate(e)}>Publish</Button> : null}
               {['draft', 'published'].includes(e.status) ? <Link className="btn btn-secondary" to={`/events/${e.id}/edit`}>Edit</Link> : null}
+              {user?.role === 'admin' && ['draft', 'published'].includes(e.status) ? <Button variant="danger" onClick={() => setConfirmCancel(true)}>Cancel event</Button> : null}
             </div>
           </div>
           <p>{e.description}</p>
@@ -47,6 +58,9 @@ export function EventDetailPage() {
           { key: 's', header: 'Status', render: (b) => <StatusBadge status={b.status} /> },
         ]} />}
       </QueryView>
+      <ConfirmDialog open={confirmCancel} danger loading={cancel.isPending} title="Cancel this event?"
+        message="Everyone booked is notified and their bookings are cancelled. Paid bookings are refunded automatically through Google Play, and seat holds are released. This cannot be undone."
+        confirmLabel="Cancel event" cancelLabel="Keep event" onCancel={() => setConfirmCancel(false)} onConfirm={() => cancel.mutate()} />
     </>
   );
 }

@@ -1,6 +1,6 @@
 import { ApiError } from './http';
 import type { AdminApi } from './index';
-import type { AdminUser, AppUser, Booking, EventPatch, PlayPurchase, RefundRequest, Report, SpeedEvent } from './types';
+import type { AdminUser, AppUser, Booking, EventPatch, PlayPayment, RefundItem, Report, SpeedEvent } from './types';
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const iso = (d: number) => new Date(Date.now() + d * 86400000).toISOString();
@@ -33,12 +33,18 @@ export function createMockApi(latency = 250): AdminApi {
     { id: 'bkg_2', eventId: 'evt_1', userId: 'usr_02', userName: 'Diya Mehta', gender: 'female', status: 'confirmed', amountInPaise: 19900, datesCompleted: 0, createdAt: iso(-1) },
   ];
   const reports: Report[] = [{ id: 'rpt_1', reporterId: 'usr_02', reporterName: 'Diya Mehta', reportedId: 'usr_03', reportedName: 'Kabir Rao', reason: 'inappropriate_behaviour', details: 'Rude on call', eventId: 'evt_3', status: 'open', createdAt: iso(-2) }];
-  const refunds: RefundRequest[] = [{ id: 'bkg_9', bookingId: 'bkg_9', userId: 'usr_04', userName: 'Ananya Iyer', eventId: 'evt_3', eventTitle: 'Bangalore Techies', amountInPaise: 24900, reason: 'no_match', status: 'requested', requestedAt: iso(-1), orderId: 'GPA.3312-0098-1122-55410' }];
-  const purchases: PlayPurchase[] = [
-    { id: 'pay_1', userId: 'usr_01', userName: 'Aarav Shah', purpose: 'booking', refId: 'bkg_1', orderId: 'GPA.3301-1111-2222-00001', productId: 'event_ticket_199', purchaseState: 'purchased', acknowledged: true, amountInPaise: 19900, createdAt: iso(-1) },
-    { id: 'pay_2', userId: 'usr_02', userName: 'Diya Mehta', purpose: 'chat_pass', refId: 'usr_02', orderId: 'GPA.3301-1111-2222-00002', productId: 'chat_pass_monthly', purchaseState: 'purchased', acknowledged: true, amountInPaise: 29900, createdAt: iso(-3) },
-    { id: 'pay_3', userId: 'usr_04', userName: 'Ananya Iyer', purpose: 'booking', refId: 'bkg_9', orderId: 'GPA.3312-0098-1122-55410', productId: 'event_ticket_249', purchaseState: 'purchased', acknowledged: true, amountInPaise: 24900, createdAt: iso(-4) },
+  const payments: PlayPayment[] = [
+    { id: 'pay_1', userId: 'usr_01', bookingId: 'bkg_1', kind: 'ticket', productId: 'event_ticket_199', orderId: 'GPA.3301-1111-2222-00001', amountInPaise: 19900, status: 'verified', acknowledged: true, createdAt: iso(-1) },
+    { id: 'pay_2', userId: 'usr_02', bookingId: null, kind: 'chat_pass', productId: 'chat_pass_monthly', orderId: 'GPA.3301-1111-2222-00002', amountInPaise: 29900, status: 'verified', acknowledged: true, createdAt: iso(-3) },
+    { id: 'pay_3', userId: 'usr_04', bookingId: 'bkg_9', kind: 'ticket', productId: 'event_ticket_249', orderId: 'GPA.3312-0098-1122-55410', amountInPaise: 24900, status: 'verified', acknowledged: true, createdAt: iso(-4) },
+    { id: 'pay_4', userId: 'usr_02', bookingId: 'bkg_2', kind: 'ticket', productId: 'event_ticket_199', orderId: 'GPA.3301-1111-2222-00003', amountInPaise: 19900, status: 'verified', acknowledged: false, createdAt: iso(-1) },
   ];
+  const refunds: RefundItem[] = [
+    { bookingId: 'bkg_9', status: 'refund_requested', amountInPaise: 24900, playOrderId: 'GPA.3312-0098-1122-55410',
+      refund: { status: 'requested', reason: 'no_match', requestedAt: iso(-1) },
+      user: { id: 'usr_04', fullName: 'Ananya Iyer', phone: '+919800000004' }, event: { id: 'evt_3', title: 'Bangalore Techies', startsAt: iso(-3) } },
+  ];
+  const payFor = (bookingId: string) => payments.find((x) => x.bookingId === bookingId);
   const find = <T extends { id: string }>(arr: T[], i: string) => { const x = arr.find((a) => a.id === i); if (!x) throw new ApiError(404, 'NOT_FOUND', 'Not found'); return x; };
   const auth = () => { if (!session) throw new ApiError(401, 'UNAUTHENTICATED', 'Please sign in'); };
   const ALLOWED: Record<string, string[]> = { draft: ['published', 'cancelled'], published: ['draft', 'cancelled', 'live'], live: ['ended'], ended: [], cancelled: [] };
@@ -75,7 +81,7 @@ export function createMockApi(latency = 250): AdminApi {
       await wait(); adminOnly();
       return { totalUsers: users.length, pendingVerifications: users.filter((u) => u.verification.status === 'pending').length,
         publishedEvents: events.filter((e) => e.status === 'published').length, liveEvents: events.filter((e) => e.status === 'live').length,
-        openReports: reports.filter((r) => r.status === 'open').length, pendingRefunds: refunds.filter((r) => r.status === 'requested').length };
+        openReports: reports.filter((r) => r.status === 'open').length, pendingRefunds: refunds.filter((r) => r.refund.status === 'requested').length };
     },
     async listEvents(status) { await wait(); return page(scoped().filter((e) => !status || e.status === status)); },
     async getEvent(i) { await wait(); return clone(findEvent(i)); },
@@ -105,12 +111,45 @@ export function createMockApi(latency = 250): AdminApi {
       if (action === 'block_user') { const u = users.find((x) => x.id === r.reportedId); if (u) u.status = 'blocked'; r.status = 'actioned'; } else r.status = 'dismissed';
       return clone(r);
     },
-    async listRefunds(status) { await wait(); return page(refunds.filter((r) => !status || r.status === status)); },
-    async reviewRefund(i, decision) {
-      await wait(); const r = find(refunds, i);
-      if (r.status !== 'requested') throw new ApiError(409, 'REFUND_ALREADY_REVIEWED', 'Refund already reviewed');
-      r.status = decision === 'approve' ? 'processing' : 'rejected'; return clone(r);
+    async listRefunds(status) { await wait(); adminOnly(); return page(refunds.filter((r) => !status || r.refund.status === status)); },
+    async approveRefund(id) {
+      await wait(); adminOnly();
+      const r = refunds.find((x) => x.bookingId === id && x.status === 'refund_requested' && ['requested', 'failed'].includes(x.refund.status));
+      if (!r) fail(409, 'REFUND_NOT_PENDING', 'Refund is not pending');
+      const pay = payFor(id); if (!pay?.orderId) fail(409, 'PAYMENT_NOT_FOUND', 'Payment not found');
+      pay!.status = 'refunded'; pay!.refundedAt = new Date().toISOString();
+      r!.status = 'refunded'; r!.refund = { ...r!.refund, status: 'processed', decidedAt: new Date().toISOString(), playOrderId: pay!.orderId };
+      return clone(r!);
     },
-    async listPurchases(q) { await wait(); const s = (q ?? '').toLowerCase(); return page(purchases.filter((p) => !s || p.orderId.toLowerCase().includes(s) || p.productId.includes(s) || p.userName.toLowerCase().includes(s))); },
+    async rejectRefund(id, reason) {
+      await wait(); adminOnly();
+      if (reason.trim().length < 3 || reason.length > 300) fail(400, 'VALIDATION_ERROR', 'Reason must be 3-300 characters');
+      const r = refunds.find((x) => x.bookingId === id && x.status === 'refund_requested' && ['requested', 'failed'].includes(x.refund.status));
+      if (!r) fail(409, 'REFUND_NOT_PENDING', 'Refund is not pending');
+      r!.status = 'confirmed'; r!.refund = { ...r!.refund, status: 'rejected', rejectReason: reason.trim(), decidedAt: new Date().toISOString() };
+      return clone(r!);
+    },
+    async listPayments(f = {}) {
+      await wait(); adminOnly();
+      return page(payments.filter((p) => (!f.status || p.status === f.status) && (!f.userId || p.userId === f.userId)));
+    },
+    async cancelEvent(id) {
+      await wait(); adminOnly();
+      const ev = events.find((x) => x.id === id); if (!ev) fail(404, 'NOT_FOUND', 'Not found');
+      if (!['draft', 'published', 'cancelled'].includes(ev!.status)) fail(409, 'INVALID_STATUS_TRANSITION', 'Live or ended events cannot be cancelled');
+      ev!.status = 'cancelled';
+      const summary = { cancelledPending: 0, cancelledFree: 0, refunded: 0, refundFailed: 0 };
+      const now = new Date().toISOString();
+      for (const b of bookings.filter((x) => x.eventId === id && ['pending', 'confirmed', 'refund_requested'].includes(x.status))) {
+        if (b.status === 'pending') { b.status = 'cancelled'; summary.cancelledPending++; continue; }
+        b.status = 'cancelled_by_admin';
+        const pay = payFor(b.id);
+        if (b.amountInPaise > 0 && pay) {
+          pay.status = 'refunded'; pay.refundedAt = now; summary.refunded++;
+          b.refund = { status: 'processed', reason: 'event_cancelled', requestedAt: now, auto: true, playOrderId: pay.orderId };
+        } else summary.cancelledFree++;
+      }
+      return { id: ev!.id, status: ev!.status, summary };
+    },
   };
 }

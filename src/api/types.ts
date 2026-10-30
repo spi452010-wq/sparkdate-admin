@@ -19,12 +19,12 @@ export interface EventInput {
   capacity: Record<Gender, number>; priceInPaise: number; playProductId: string | null; status?: EventStatus;
 }
 export type EventPatch = Partial<EventInput>;
-export type RefundStatus = 'requested' | 'processing' | 'processed' | 'rejected';
+export type RefundStatus = 'requested' | 'processing' | 'processed' | 'rejected' | 'failed';
 export interface Booking {
   id: string; eventId: string; userId: string; userName: string; gender: Gender;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'expired' | 'refunded';
+  status: BookingStatus;
   amountInPaise: number; datesCompleted: number; createdAt: string;
-  refund?: { status: RefundStatus; requestedAt: string };
+  refund?: BookingRefund;
 }
 export type VerificationStatus = 'none' | 'pending' | 'approved' | 'rejected';
 export interface Photo { key: string; order: number; url: string } // url is signed, expires in 15 min: never cache long term
@@ -43,18 +43,26 @@ export interface Report {
   id: string; reporterId: string; reporterName: string; reportedId: string; reportedName: string;
   eventId?: string; dateId?: string; reason: string; details?: string; status: ReportStatus; createdAt: string;
 }
-/** Refund request = booking with refund sub-document. Admin approves/rejects; backend issues the Google Play refund. */
-export interface RefundRequest {
-  id: string; bookingId: string; userId: string; userName: string; eventId: string; eventTitle: string;
-  amountInPaise: number; reason: string; status: RefundStatus; requestedAt: string;
-  orderId?: string; // Google Play order id, e.g. GPA.1234-5678-9012-34567
+export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'expired' | 'refund_requested' | 'refunded' | 'cancelled_by_admin';
+/** Booking refund sub-document (docs/api/SPRINT2_API.md, booking.model.ts). */
+export interface BookingRefund {
+  status: RefundStatus; reason?: string; requestedAt?: string; decidedAt?: string;
+  rejectReason?: string; playOrderId?: string; auto?: boolean;
 }
-export type PurchaseState = 'pending' | 'purchased' | 'cancelled' | 'refunded';
-export interface PlayPurchase {
-  id: string; userId: string; userName: string; purpose: 'booking' | 'chat_pass'; refId: string;
-  orderId: string; productId: string; purchaseState: PurchaseState; acknowledged: boolean;
-  amountInPaise: number; createdAt: string;
+/** GET /admin/refunds item: a booking with a refund. Identified by bookingId; backend issues the Google Play refund on approve. */
+export interface RefundItem {
+  bookingId: string; status: BookingStatus; refund: BookingRefund; amountInPaise: number; playOrderId?: string;
+  user: { id: string; fullName?: string; phone?: string };
+  event: { id: string; title?: string; startsAt?: string };
 }
+export type PaymentStatus = 'verified' | 'refunded' | 'refund_failed' | 'voided';
+/** GET /admin/payments item. purchaseToken is never returned. */
+export interface PlayPayment {
+  id: string; userId: string; bookingId: string | null; kind: 'ticket' | 'chat_pass'; productId: string;
+  orderId?: string; amountInPaise: number; status: PaymentStatus; acknowledged: boolean; createdAt: string; refundedAt?: string;
+}
+export interface CancelSummary { cancelledPending: number; cancelledFree: number; refunded: number; refundFailed: number }
+export interface CancelEventResult { id: string; status: EventStatus; summary: CancelSummary }
 export interface DashboardStats {
   totalUsers: number; pendingVerifications: number; publishedEvents: number; liveEvents: number;
   openReports: number; pendingRefunds: number;

@@ -1,6 +1,6 @@
 import { ApiError, http } from './http';
 import { createMockApi } from './mock';
-import type { AdminUser, AppUser, Booking, DashboardStats, EventInput, EventPatch, EventStatus, Paginated, PlayPurchase, RefundRequest, RefundStatus, Report, ReportStatus, SpeedEvent, VerificationStatus } from './types';
+import type { AdminUser, AppUser, Booking, DashboardStats, EventInput, EventPatch, EventStatus, Paginated, CancelEventResult, PaymentStatus, PlayPayment, RefundItem, RefundStatus, Report, ReportStatus, SpeedEvent, VerificationStatus } from './types';
 
 export interface AdminApi {
   /** true for the in-memory mock; false for the real backend. */
@@ -19,9 +19,11 @@ export interface AdminApi {
   setUserStatus(id: string, status: 'active' | 'blocked'): Promise<Pick<AppUser, 'id' | 'status'>>;
   listReports(status?: ReportStatus): Promise<Paginated<Report>>;
   resolveReport(id: string, action: 'dismiss' | 'block_user'): Promise<Report>;
-  listRefunds(status?: RefundStatus): Promise<Paginated<RefundRequest>>;
-  reviewRefund(id: string, decision: 'approve' | 'reject'): Promise<RefundRequest>;
-  listPurchases(q?: string): Promise<Paginated<PlayPurchase>>;
+  listRefunds(status?: RefundStatus): Promise<Paginated<RefundItem>>;
+  approveRefund(bookingId: string): Promise<RefundItem>;
+  rejectRefund(bookingId: string, reason: string): Promise<RefundItem>;
+  listPayments(f?: { status?: PaymentStatus; userId?: string }): Promise<Paginated<PlayPayment>>;
+  cancelEvent(id: string): Promise<CancelEventResult>;
 }
 
 const qs = (p: Record<string, string | undefined>) => {
@@ -47,10 +49,14 @@ export const httpApi: AdminApi = {
   listUsers: (q, verification, status) => http(`/admin/users${qs({ q, verification, status, limit: '100' })}`),
   reviewVerification: (id, decision, reason) => http(`/admin/users/${e(id)}/verification`, json('POST', reason ? { decision, reason } : { decision })),
   setUserStatus: (id, status) => http(`/admin/users/${e(id)}/status`, json('POST', { status })),
-  // Not in the backend yet (reports: Sprint 2, refunds/payments: Sprint 4). Pages show a "not available yet" state.
-  // Planned paths: GET /admin/reports, POST /admin/reports/{id}/resolve, GET /admin/refunds,
-  // POST /admin/refunds/{id}/approve|reject, GET /admin/payments.
-  listReports: notAvailable, resolveReport: notAvailable, listRefunds: notAvailable, reviewRefund: notAvailable, listPurchases: notAvailable,
+  // Sprint 2 (docs/api/SPRINT2_API.md), admin role only. Admin POSTs need CSRF only, no Idempotency-Key.
+  listRefunds: (status) => http(`/admin/refunds${qs({ status, limit: '100' })}`),
+  approveRefund: (id) => http(`/admin/refunds/${e(id)}/approve`, json('POST')),
+  rejectRefund: (id, reason) => http(`/admin/refunds/${e(id)}/reject`, json('POST', { reason })),
+  listPayments: (f = {}) => http(`/admin/payments${qs({ status: f.status, userId: f.userId, limit: '100' })}`),
+  cancelEvent: (id) => http(`/admin/events/${e(id)}/cancel`, json('POST')),
+  // No admin reports API yet: page shows "Coming soon" on the real API.
+  listReports: notAvailable, resolveReport: notAvailable,
 };
 
 export const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? 'true') !== 'false';

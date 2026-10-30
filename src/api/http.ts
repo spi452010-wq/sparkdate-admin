@@ -18,9 +18,19 @@ export function friendlyMessage(code: string, fallback: string, details?: Record
     case 'UNAUTHORIZED': case 'TOKEN_INVALID': case 'REFRESH_INVALID': case 'REFRESH_REUSED': return 'Your session expired. Please sign in again.';
     case 'CAPACITY_BELOW_BOOKED': return 'Capacity cannot be lower than the seats already booked for this event.';
     case 'EVENT_LOCKED': return 'Schedule, price and capacity cannot change once an event is live or ended.';
-    case 'INVALID_STATUS_TRANSITION': return `This status change is not allowed (${fallback}).`;
+    case 'INVALID_STATUS_TRANSITION': return `This status change is not allowed (${fallback}). Live or ended events cannot be cancelled.`;
     case 'NO_PENDING_VERIFICATION': return 'This selfie was already reviewed. The list has been refreshed.';
     case 'CANNOT_CHANGE_SELF': return 'You cannot block your own account.';
+    case 'USE_CANCEL_ENDPOINT': return 'This event has bookings. Use "Cancel event" so seats are released and paid bookings are refunded.';
+    case 'REFUND_NOT_PENDING': return 'This refund was already decided or is being processed. The list has been refreshed.';
+    case 'PAYMENT_NOT_FOUND': return 'No Google Play payment was found for this booking, so it cannot be refunded here.';
+    case 'ORDER_ID_MISSING': return 'The Google Play order ID is missing for this payment.';
+    case 'PLAY_UNAVAILABLE': return 'Google Play is not responding right now. The refund was marked failed; try again in a few minutes.';
+    case 'PURCHASE_INVALID': return 'Google Play rejected this purchase or refund.';
+    case 'BOOKING_NOT_FOUND': return 'Booking not found.';
+    case 'EVENT_NOT_FOUND': case 'NOT_FOUND': return 'Not found. It may have been removed, or you do not have access.';
+    case 'VALIDATION_ERROR': return `Please check the details: ${fallback}`;
+    case 'IDEMPOTENCY_IN_PROGRESS': return 'This request is still being processed. Wait a moment and refresh.';
     case 'NOT_AVAILABLE': return 'This section is not available yet.';
     default: return fallback;
   }

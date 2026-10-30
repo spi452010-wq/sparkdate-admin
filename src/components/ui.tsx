@@ -40,10 +40,10 @@ const tone: Record<string, string> = {
   upcoming: 'info', live: 'success', completed: 'neutral', cancelled: 'danger', draft: 'neutral',
   pending: 'warning', approved: 'success', rejected: 'danger', not_submitted: 'neutral',
   open: 'warning', resolved: 'success', requested: 'warning', confirmed: 'success', refunded: 'neutral',
-  blocked: 'danger', active: 'success', free: 'info', paid: 'accent',
+  blocked: 'danger', processing: 'info', processed: 'success', failed: 'danger', verified: 'success', voided: 'danger', refund_failed: 'danger', refund_requested: 'warning', cancelled_by_admin: 'danger', active: 'success', free: 'info', paid: 'accent',
 };
 export function StatusBadge({ status }: { status: string }) {
-  return <span className={`badge badge-${tone[status] ?? 'neutral'}`}>{status.replace('_', ' ')}</span>;
+  return <span className={`badge badge-${tone[status] ?? 'neutral'}`}>{status.replace(/_/g, ' ')}</span>;
 }
 
 export function Notice({ children, kind = 'success' }: { children: ReactNode; kind?: 'success' | 'error' }) {

@@ -25,7 +25,7 @@ function AdminDashboard() {
       <QueryView query={q}>{(s) => <StatList stats={[
         ['Users', s.totalUsers, '/users'], ['Pending verifications', s.pendingVerifications, '/users?verification=pending'],
         ['Published events', s.publishedEvents, '/events?status=published'], ['Live events', s.liveEvents, '/events?status=live'],
-        ['Open reports', api.mock ? s.openReports : 'Soon', '/reports'], ['Pending refunds', api.mock ? s.pendingRefunds : 'Soon', '/refunds'],
+        ['Open reports', api.mock ? s.openReports : 'Soon', '/reports'], ['Pending refunds', s.pendingRefunds, '/refunds'],
       ]} />}</QueryView>
     </>
   );

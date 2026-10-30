@@ -32,15 +32,15 @@ export function Modal({ open, title, onClose, children }: { open: boolean; title
   );
 }
 
-export function ConfirmDialog({ open, title, message, confirmLabel = 'Confirm', danger, loading, onConfirm, onCancel }: {
-  open: boolean; title: string; message: ReactNode; confirmLabel?: string; danger?: boolean; loading?: boolean;
+export function ConfirmDialog({ open, title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger, loading, onConfirm, onCancel }: {
+  open: boolean; title: string; message: ReactNode; confirmLabel?: string; cancelLabel?: string; danger?: boolean; loading?: boolean;
   onConfirm: () => void; onCancel: () => void;
 }) {
   return (
     <Modal open={open} title={title} onClose={onCancel}>
       <p>{message}</p>
       <div className="row end">
-        <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+        <Button variant="secondary" onClick={onCancel}>{cancelLabel}</Button>
         <Button variant={danger ? 'danger' : 'primary'} loading={loading} onClick={onConfirm}>{confirmLabel}</Button>
       </div>
     </Modal>
