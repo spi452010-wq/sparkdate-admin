@@ -29,8 +29,8 @@ Unsafe methods send `X-CSRF-Token` (= `csrf_token`), else 403 `CSRF_INVALID`. Lo
 | PATCH | /admin/events/{id} | partial EventInput (publish sends `{ status: "published" }`) |
 | GET | /admin/events/{id}/bookings | `{ items, total }` |
 
-Event `{ id, title, description, startsAt, endsAt?, roundMinutes, priceInPaise, playProductId|null, status, capacity{male,female}, booked{male,female} }`.
-Rules mirrored in the form: total capacity ≤ 300, `playProductId` required when `priceInPaise > 0` (e.g. `event_ticket_199`), start in the future on create.
+Event `{ id, title, city, description, startsAt, endsAt?, roundMinutes, priceInPaise, playProductId|null, status, capacity{male,female}, booked{male,female} }`.
+Rules mirrored in the form: total capacity ≤ 300, `playProductId` required when `priceInPaise > 0` (e.g. `event_ticket_199`), start in the future on create. **`city` is required by the panel** (trimmed, 1-60 chars; architect decision, cards show e.g. "Indore • Virtual") and is sent on create and every PATCH from the edit form. Backend gap: `adminEvents.routes.ts` still has `city` as `.optional()` (the model has no `required`), so the API accepts events without a city.
 | POST | /admin/events/{id}/cancel | admin only → `{ id, status, summary: { cancelledPending, cancelledFree, refunded, refundFailed } }`; safe to re-run; failed refunds retried by the server |
 
 Errors: 409 `USE_CANCEL_ENDPOINT` (PATCH to cancelled when bookings exist), 409 `CAPACITY_BELOW_BOOKED`, 409 `EVENT_LOCKED` (live/ended: no Edit button), 409 `INVALID_STATUS_TRANSITION`, 404 for another host's event.
@@ -57,3 +57,4 @@ Approve/reject are allowed when booking `status = refund_requested` and `refund.
 - Payments have no text search (order ID / product) and no user name; the panel shows the user ID.
 - Refund/payment lists don't take `q`; only status (and userId) filters.
 - No admin reports API yet.
+- Event `city` is optional in the backend (create schema `.optional()`, model not `required`), but the panel requires it per the architect decision. Backend should make it required on create (and reject clearing it on PATCH).

@@ -40,6 +40,7 @@ export function EventDetailPage() {
           </div>
           <p>{e.description}</p>
           <dl className="dl">
+            <dt>City</dt><dd>{e.city ? `${e.city} • Virtual` : 'Not set (edit to add)'}</dd>
             <dt>Starts</dt><dd>{new Date(e.startsAt).toLocaleString('en-IN')}</dd>
             <dt>Round</dt><dd>{e.roundMinutes} min</dd>
             <dt>Price</dt><dd>{formatInr(e.priceInPaise)}{e.playProductId ? ` (Play product ${e.playProductId})` : ''}</dd>

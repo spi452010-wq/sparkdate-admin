@@ -2,7 +2,7 @@
 
 React 18 + TypeScript + Vite, React Router, TanStack Query. No UI kit; plain CSS with design tokens (`src/styles/global.css`).
 
-Screens: Login · Dashboard · Events (status filter, boys/girls seats booked vs capacity) · Create/Edit event (gender capacity ≤300 total, 3-min rounds, free or paid with Google Play product ID) · Event detail + bookings + publish · Users (search, selfie verification approve/reject, block/unblock) · Reports (dismiss / block user) · Refund requests (approve/reject; backend processes the Google Play refund) · Google Play purchases.
+Screens: Login · Dashboard · Events (status filter, boys/girls seats booked vs capacity) · Create/Edit event (required City, shown as "City • Virtual", gender capacity ≤300 total, 3-min rounds, free or paid with Google Play product ID) · Event detail + bookings + publish · Users (search, selfie verification approve/reject, block/unblock) · Reports (dismiss / block user) · Refund requests (approve/reject; backend processes the Google Play refund) · Google Play purchases.
 Roles: `admin` sees everything; `host` sees dashboard and events.
 
 ## Setup

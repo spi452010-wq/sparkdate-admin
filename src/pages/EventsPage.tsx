@@ -27,6 +27,7 @@ export function EventsPage() {
         {(d) => (
           <Table<SpeedEvent> caption="Events" rows={d.items} columns={[
             { key: 't', header: 'Title', render: (e) => <Link to={`/events/${e.id}`}>{e.title}</Link> },
+            { key: 'c', header: 'City', render: (e) => e.city ? `${e.city} • Virtual` : '—' },
             { key: 'd', header: 'Starts', render: (e) => new Date(e.startsAt).toLocaleString('en-IN') },
             { key: 'b', header: 'Boys', render: (e) => seatText(e.booked.male, e.capacity.male) },
             { key: 'g', header: 'Girls', render: (e) => seatText(e.booked.female, e.capacity.female) },

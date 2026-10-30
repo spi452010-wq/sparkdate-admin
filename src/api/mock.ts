@@ -19,9 +19,9 @@ export function createMockApi(latency = 250): AdminApi {
     'host@sparkdate.in': { id: 'host_1', email: 'host@sparkdate.in', role: 'host', fullName: 'Event Host' },
   };
   const events: SpeedEvent[] = [
-    { id: 'evt_1', title: 'Friday Night Sparks', description: 'Mumbai singles 25-32', startsAt: iso(2), roundMinutes: 3, priceInPaise: 19900, playProductId: 'event_ticket_199', status: 'published', capacity: { male: 150, female: 150 }, booked: { male: 112, female: 97 }, createdBy: 'host_1' },
-    { id: 'evt_2', title: 'Sunday Coffee Dates', description: 'Free community event', startsAt: iso(4), roundMinutes: 3, priceInPaise: 0, playProductId: null, status: 'draft', capacity: { male: 100, female: 100 }, booked: { male: 0, female: 0 }, createdBy: 'adm_1' },
-    { id: 'evt_3', title: 'Bangalore Techies', description: 'For people in tech', startsAt: iso(-3), roundMinutes: 3, priceInPaise: 24900, playProductId: 'event_ticket_249', status: 'ended', capacity: { male: 150, female: 150 }, booked: { male: 150, female: 141 }, createdBy: 'adm_1' },
+    { id: 'evt_1', city: 'Mumbai', title: 'Friday Night Sparks', description: 'Mumbai singles 25-32', startsAt: iso(2), roundMinutes: 3, priceInPaise: 19900, playProductId: 'event_ticket_199', status: 'published', capacity: { male: 150, female: 150 }, booked: { male: 112, female: 97 }, createdBy: 'host_1' },
+    { id: 'evt_2', city: 'Indore', title: 'Sunday Coffee Dates', description: 'Free community event', startsAt: iso(4), roundMinutes: 3, priceInPaise: 0, playProductId: null, status: 'draft', capacity: { male: 100, female: 100 }, booked: { male: 0, female: 0 }, createdBy: 'adm_1' },
+    { id: 'evt_3', city: 'Bengaluru', title: 'Bangalore Techies', description: 'For people in tech', startsAt: iso(-3), roundMinutes: 3, priceInPaise: 24900, playProductId: 'event_ticket_249', status: 'ended', capacity: { male: 150, female: 150 }, booked: { male: 150, female: 141 }, createdBy: 'adm_1' },
   ];
   const mk = (id: string, fullName: string, gender: 'male' | 'female', v: AppUser['verification']['status'], status: AppUser['status'] = 'active'): AppUser =>
     ({ id, phone: `+9198000000${id.slice(-2)}`, role: 'user', status, profileCompleted: true,
@@ -52,6 +52,8 @@ export function createMockApi(latency = 250): AdminApi {
   const adminOnly = () => { auth(); if (session!.role !== 'admin') fail(403, 'FORBIDDEN', 'Admins only'); };
   const scoped = () => { auth(); return events.filter((e) => session!.role === 'admin' || e.createdBy === session!.id); };
   const check = (n: SpeedEvent) => {
+    const city = (n.city ?? '').trim();
+    if (!city || city.length > 60) fail(400, 'VALIDATION_ERROR', 'city is required (1-60 characters)');
     if (n.capacity.male < 1 || n.capacity.female < 1 || n.capacity.male + n.capacity.female > 300) fail(400, 'VALIDATION_ERROR', 'Total capacity max 300');
     if (n.priceInPaise > 0 && !n.playProductId) fail(400, 'VALIDATION_ERROR', 'playProductId required for paid events');
   };

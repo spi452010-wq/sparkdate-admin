@@ -15,7 +15,7 @@ export interface SpeedEvent {
   createdBy?: string;
 }
 export interface EventInput {
-  title: string; description: string; startsAt: string; roundMinutes: number;
+  title: string; city: string; description: string; startsAt: string; roundMinutes: number;
   capacity: Record<Gender, number>; priceInPaise: number; playProductId: string | null; status?: EventStatus;
 }
 export type EventPatch = Partial<EventInput>;

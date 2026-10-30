@@ -1,12 +1,18 @@
 import { emptyEventValues, toEventInput, validateEvent, type EventFormValues } from '../features/events/validation';
 
 const now = new Date('2026-10-30T10:00:00');
-const valid = (o: Partial<EventFormValues> = {}): EventFormValues => ({ ...emptyEventValues(), title: 'Friday Sparks', date: '2026-11-05', time: '19:00', ...o });
+const valid = (o: Partial<EventFormValues> = {}): EventFormValues => ({ ...emptyEventValues(), title: 'Friday Sparks', city: 'Indore', date: '2026-11-05', time: '19:00', ...o });
 
 describe('validateEvent', () => {
   it('accepts a valid free event with default 3-minute rounds and 150+150 seats', () => {
     expect(validateEvent(valid(), now)).toEqual({});
     expect(emptyEventValues().roundMinutes).toBe('3');
+  });
+  it('requires a city (1-60 chars, trimmed) and sends it trimmed', () => {
+    expect(validateEvent(valid({ city: '   ' }), now).city).toMatch(/City is required/);
+    expect(validateEvent(valid({ city: 'x'.repeat(61) }), now).city).toMatch(/60 characters/);
+    expect(validateEvent(valid({ city: 'x'.repeat(60) }), now).city).toBeUndefined();
+    expect(toEventInput(valid({ city: '  Indore ' })).city).toBe('Indore');
   });
   it('requires title, date and time', () => {
     const e = validateEvent(valid({ title: ' ', date: '', time: '' }), now);

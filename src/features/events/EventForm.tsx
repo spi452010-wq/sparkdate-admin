@@ -28,6 +28,7 @@ export function EventForm({ initial, submitLabel, onSubmit, allowPast }: {
     <form onSubmit={submit} noValidate className="card form" aria-label="Event form">
       {submitError ? <Notice kind="error">{submitError}</Notice> : null}
       <Field label="Title" error={errors.title}><input value={v.title} onChange={(e) => set('title', e.target.value)} maxLength={80} /></Field>
+      <Field label="City" error={errors.city} hint="Required. Events are online; cards show e.g. “Indore • Virtual”."><input value={v.city} onChange={(e) => set('city', e.target.value)} maxLength={60} required aria-required="true" /></Field>
       <Field label="Description" error={errors.description}><textarea rows={3} value={v.description} onChange={(e) => set('description', e.target.value)} /></Field>
       <div className="grid2">
         <Field label="Date" error={errors.date}><input type="date" value={v.date} onChange={(e) => set('date', e.target.value)} /></Field>

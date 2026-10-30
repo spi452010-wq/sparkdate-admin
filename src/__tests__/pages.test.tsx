@@ -84,6 +84,28 @@ describe('pages (mock API)', () => {
     expect(screen.queryByRole('button', { name: 'Cancel event' })).not.toBeInTheDocument();
     await expect(api.cancelEvent('evt_1')).rejects.toMatchObject({ status: 403 });
   });
+  it('shows the city as "City • Virtual" in the events list and detail', async () => {
+    const api = await signedIn();
+    const { unmount } = renderApp(<AppRoutes />, { api, route: '/events' });
+    expect(await screen.findByText('Indore • Virtual')).toBeInTheDocument();
+    unmount();
+    renderApp(<AppRoutes />, { api, route: '/events/evt_1' });
+    expect(await screen.findByText('Mumbai • Virtual')).toBeInTheDocument();
+  });
+  it('edit form loads the city and sends it on PATCH', async () => {
+    const api = await signedIn(); const spy = vi.spyOn(api, 'updateEvent');
+    renderApp(<AppRoutes />, { api, route: '/events/evt_2/edit' });
+    const city = await screen.findByLabelText('City');
+    expect(city).toHaveValue('Indore');
+    await userEvent.clear(city); await userEvent.type(city, 'Pune');
+    await userEvent.click(screen.getByRole('button', { name: /Save/ }));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith('evt_2', expect.objectContaining({ city: 'Pune' })));
+  });
+  it('mock API rejects an event without a city like the agreed contract', async () => {
+    const api = await signedIn();
+    await expect(api.createEvent({ title: 'No City', city: ' ', description: '', startsAt: new Date(Date.now() + 864e5).toISOString(), roundMinutes: 3, capacity: { male: 10, female: 10 }, priceInPaise: 0, playProductId: null }))
+      .rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
+  });
   it('maps USE_CANCEL_ENDPOINT to a plain message', () => {
     expect(new ApiError(409, 'USE_CANCEL_ENDPOINT', 'x').message).toMatch(/Use "Cancel event"/);
   });
