@@ -44,6 +44,10 @@ export function createMockApi(latency = 250): AdminApi {
       refund: { status: 'requested', reason: 'no_match', requestedAt: iso(-1) },
       user: { id: 'usr_04', fullName: 'Ananya Iyer', phone: '+919800000004' }, event: { id: 'evt_3', title: 'Bangalore Techies', startsAt: iso(-3) } },
   ];
+  const summary = (id: string) => { const u = users.find((x) => x.id === id); return { id, fullName: u?.profile?.fullName ?? null, phone: u?.phone ?? null }; };
+  /** Like the server: case-insensitive plain-text match on name, phone or email; null = no q. */
+  const userIdsFor = (q?: string) => { const s = q?.trim().toLowerCase(); if (!s) return null;
+    return new Set(users.filter((u) => [u.profile?.fullName, u.phone, u.email].some((x) => (x ?? '').toLowerCase().includes(s))).map((u) => u.id)); };
   const payFor = (bookingId: string) => payments.find((x) => x.bookingId === bookingId);
   const find = <T extends { id: string }>(arr: T[], i: string) => { const x = arr.find((a) => a.id === i); if (!x) throw new ApiError(404, 'NOT_FOUND', 'Not found'); return x; };
   const auth = () => { if (!session) throw new ApiError(401, 'UNAUTHENTICATED', 'Please sign in'); };
@@ -113,7 +117,8 @@ export function createMockApi(latency = 250): AdminApi {
       if (action === 'block_user') { const u = users.find((x) => x.id === r.reportedId); if (u) u.status = 'blocked'; r.status = 'actioned'; } else r.status = 'dismissed';
       return clone(r);
     },
-    async listRefunds(status) { await wait(); adminOnly(); return page(refunds.filter((r) => !status || r.refund.status === status)); },
+    async listRefunds(f = {}) { await wait(); adminOnly(); const ids = userIdsFor(f.q);
+      return page(refunds.filter((r) => (!f.status || r.refund.status === f.status) && (!ids || ids.has(r.user.id))).map((r) => ({ ...clone(r), user: summary(r.user.id) }))); },
     async approveRefund(id) {
       await wait(); adminOnly();
       const r = refunds.find((x) => x.bookingId === id && x.status === 'refund_requested' && ['requested', 'failed'].includes(x.refund.status));
@@ -133,7 +138,10 @@ export function createMockApi(latency = 250): AdminApi {
     },
     async listPayments(f = {}) {
       await wait(); adminOnly();
-      return page(payments.filter((p) => (!f.status || p.status === f.status) && (!f.userId || p.userId === f.userId)));
+      const ids = userIdsFor(f.q);
+      const evBookings = f.eventId ? new Set(bookings.filter((b) => b.eventId === f.eventId).map((b) => b.id)) : null;
+      return page(payments.filter((p) => (!f.status || p.status === f.status) && (!f.userId || p.userId === f.userId) && (!ids || ids.has(p.userId)) && (!evBookings || (!!p.bookingId && evBookings.has(p.bookingId))))
+        .map((p) => ({ ...clone(p), user: summary(p.userId) })));
     },
     async cancelEvent(id) {
       await wait(); adminOnly();

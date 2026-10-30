@@ -15,9 +15,9 @@ describe('httpApi Sprint 2 wiring', () => {
   });
   it('lists refunds and payments with contract query params', async () => {
     const f = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => ok({ items: [], page: 1, limit: 100, total: 0 }));
-    await httpApi.listRefunds('failed'); await httpApi.listPayments({ status: 'refund_failed', userId: 'u1' });
-    expect(String(f.mock.calls[0][0])).toBe('/api/v1/admin/refunds?status=failed&limit=100');
-    expect(String(f.mock.calls[1][0])).toBe('/api/v1/admin/payments?status=refund_failed&userId=u1&limit=100');
+    await httpApi.listRefunds({ status: 'failed', q: 'asha 98' }); await httpApi.listPayments({ status: 'refund_failed', userId: 'u1', eventId: 'e1', q: '+9198' });
+    expect(String(f.mock.calls[0][0])).toBe('/api/v1/admin/refunds?status=failed&q=asha+98&limit=100');
+    expect(String(f.mock.calls[1][0])).toBe('/api/v1/admin/payments?status=refund_failed&userId=u1&eventId=e1&q=%2B9198&limit=100');
   });
   it('maps PLAY_UNAVAILABLE to a plain message', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async () => ok({ error: { code: 'PLAY_UNAVAILABLE', message: 'x' } }, 503));

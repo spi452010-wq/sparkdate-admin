@@ -50,15 +50,18 @@ export interface BookingRefund {
   rejectReason?: string; playOrderId?: string; auto?: boolean;
 }
 /** GET /admin/refunds item: a booking with a refund. Identified by bookingId; backend issues the Google Play refund on approve. */
+/** Read from users at query time; fullName/phone are null when the user no longer exists. */
+export interface UserSummary { id: string; fullName: string | null; phone: string | null }
+export const userLabel = (u: UserSummary | undefined, fallbackId: string) => u?.fullName || u?.phone || u?.id || fallbackId;
 export interface RefundItem {
   bookingId: string; status: BookingStatus; refund: BookingRefund; amountInPaise: number; playOrderId?: string;
-  user: { id: string; fullName?: string; phone?: string };
+  user: UserSummary;
   event: { id: string; title?: string; startsAt?: string };
 }
 export type PaymentStatus = 'verified' | 'refunded' | 'refund_failed' | 'voided';
 /** GET /admin/payments item. purchaseToken is never returned. */
 export interface PlayPayment {
-  id: string; userId: string; bookingId: string | null; kind: 'ticket' | 'chat_pass'; productId: string;
+  id: string; userId: string; user?: UserSummary; bookingId: string | null; kind: 'ticket' | 'chat_pass'; productId: string;
   orderId?: string; amountInPaise: number; status: PaymentStatus; acknowledged: boolean; createdAt: string; refundedAt?: string;
 }
 export interface CancelSummary { cancelledPending: number; cancelledFree: number; refunded: number; refundFailed: number }

@@ -26,7 +26,7 @@ Default. Accounts: `admin@sparkdate.in` (admin) and `host@sparkdate.in` (host), 
 
 ## Real API (`VITE_USE_MOCK=false`)
 - Login: `POST /admin/auth/login {email,password}`, session check `GET /admin/auth/me`, `POST /admin/auth/logout`.
-- Live: users (server `q` search, verification review, block/unblock), `/admin/stats`, events CRUD + bookings, **event Cancel** (`POST /admin/events/:id/cancel`, paid bookings auto-refunded), **refunds** (approve / reject with reason, retry failed) and **Google Play purchases** (filter by status and user ID). Contract: `docs/api/SPRINT2_API.md` in sparkdate-api.
+- Live: users (server `q` search, verification review, block/unblock), `/admin/stats`, events CRUD + bookings, **event Cancel** (`POST /admin/events/:id/cancel`, paid bookings auto-refunded), **refunds** (approve / reject with reason, retry failed, search by name/phone/email) and **Google Play purchases** (search by name/phone/email, filter by event and status; filters live in the URL). Contract: `docs/api/SPRINT2_API.md` in sparkdate-api.
 - **Reports are not in the backend yet.** With the real API the Reports page shows "Coming soon: not available yet" and makes no request; the dashboard tile shows "Soon".
 - Refunds, payments and Cancel event are admin-only (the API gives hosts 403; hosts don't see them).
 - Hosts: see and edit only their own events; no dashboard stats or users (they get a "My events" summary).

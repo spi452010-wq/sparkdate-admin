@@ -106,6 +106,46 @@ describe('pages (mock API)', () => {
     await expect(api.createEvent({ title: 'No City', city: ' ', description: '', startsAt: new Date(Date.now() + 864e5).toISOString(), roundMinutes: 3, capacity: { male: 10, female: 10 }, priceInPaise: 0, playProductId: null }))
       .rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
   });
+  it('payments: debounced q search syncs to the URL and shows name/phone columns', async () => {
+    const api = await signedIn(); const spy = vi.spyOn(api, 'listPayments');
+    renderApp(<AppRoutes />, { api, route: '/payments' });
+    expect(await screen.findByText('Ananya Iyer')).toBeInTheDocument();
+    expect(screen.getByText('+919800000004')).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText('Search payments'), 'diya');
+    await waitFor(() => expect(screen.getByText('GPA.3301-1111-2222-00002')).toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('Ananya Iyer')).not.toBeInTheDocument());
+    expect(await screen.findAllByText('Diya Mehta')).toHaveLength(2);
+    expect(screen.queryByText('Ananya Iyer')).not.toBeInTheDocument();
+    // one request per settled term, not per keystroke
+    expect(spy.mock.calls.map((c) => c[0]?.q)).toEqual([undefined, 'diya']);
+  });
+  it('payments: event filter and URL params restore state', async () => {
+    const api = await signedIn(); const spy = vi.spyOn(api, 'listPayments');
+    renderApp(<AppRoutes />, { api, route: '/payments?eventId=evt_1&q=diya' });
+    expect(await screen.findByText('GPA.3301-1111-2222-00003')).toBeInTheDocument();
+    expect(screen.queryByText('GPA.3301-1111-2222-00002')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Search payments')).toHaveValue('diya');
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ eventId: 'evt_1', q: 'diya' }));
+    await waitFor(() => expect(screen.getByLabelText('Event')).toHaveValue('evt_1'));
+    await userEvent.selectOptions(screen.getByLabelText('Event'), '');
+    expect(await screen.findByText('GPA.3301-1111-2222-00002')).toBeInTheDocument();
+  });
+  it('payments: falls back to the user ID when the user is missing', async () => {
+    const api = await signedIn(); const real = api.listPayments.bind(api);
+    api.listPayments = async (f) => { const r = await real(f); return { ...r, items: r.items.map((p) => ({ ...p, user: { id: p.userId, fullName: null, phone: null } })) }; };
+    renderApp(<AppRoutes />, { api, route: '/payments' });
+    expect((await screen.findAllByText('usr_02')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Diya Mehta')).not.toBeInTheDocument();
+  });
+  it('refunds: q search (debounced, in URL) filters by user', async () => {
+    const api = await signedIn(); const spy = vi.spyOn(api, 'listRefunds');
+    renderApp(<AppRoutes />, { api, route: '/refunds' });
+    expect(await screen.findByText('Ananya Iyer')).toBeInTheDocument();
+    expect(screen.getByText('+919800000004')).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText('Search refunds'), 'kabir');
+    expect(await screen.findByText(/Nothing matches “kabir”/)).toBeInTheDocument();
+    expect(spy).toHaveBeenLastCalledWith({ status: 'requested', q: 'kabir' });
+  });
   it('maps USE_CANCEL_ENDPOINT to a plain message', () => {
     expect(new ApiError(409, 'USE_CANCEL_ENDPOINT', 'x').message).toMatch(/Use "Cancel event"/);
   });

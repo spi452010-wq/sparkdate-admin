@@ -19,10 +19,10 @@ export interface AdminApi {
   setUserStatus(id: string, status: 'active' | 'blocked'): Promise<Pick<AppUser, 'id' | 'status'>>;
   listReports(status?: ReportStatus): Promise<Paginated<Report>>;
   resolveReport(id: string, action: 'dismiss' | 'block_user'): Promise<Report>;
-  listRefunds(status?: RefundStatus): Promise<Paginated<RefundItem>>;
+  listRefunds(f?: { status?: RefundStatus; q?: string }): Promise<Paginated<RefundItem>>;
   approveRefund(bookingId: string): Promise<RefundItem>;
   rejectRefund(bookingId: string, reason: string): Promise<RefundItem>;
-  listPayments(f?: { status?: PaymentStatus; userId?: string }): Promise<Paginated<PlayPayment>>;
+  listPayments(f?: { status?: PaymentStatus; userId?: string; eventId?: string; q?: string }): Promise<Paginated<PlayPayment>>;
   cancelEvent(id: string): Promise<CancelEventResult>;
 }
 
@@ -50,10 +50,10 @@ export const httpApi: AdminApi = {
   reviewVerification: (id, decision, reason) => http(`/admin/users/${e(id)}/verification`, json('POST', reason ? { decision, reason } : { decision })),
   setUserStatus: (id, status) => http(`/admin/users/${e(id)}/status`, json('POST', { status })),
   // Sprint 2 (docs/api/SPRINT2_API.md), admin role only. Admin POSTs need CSRF only, no Idempotency-Key.
-  listRefunds: (status) => http(`/admin/refunds${qs({ status, limit: '100' })}`),
+  listRefunds: (f = {}) => http(`/admin/refunds${qs({ status: f.status, q: f.q, limit: '100' })}`),
   approveRefund: (id) => http(`/admin/refunds/${e(id)}/approve`, json('POST')),
   rejectRefund: (id, reason) => http(`/admin/refunds/${e(id)}/reject`, json('POST', { reason })),
-  listPayments: (f = {}) => http(`/admin/payments${qs({ status: f.status, userId: f.userId, limit: '100' })}`),
+  listPayments: (f = {}) => http(`/admin/payments${qs({ status: f.status, userId: f.userId, eventId: f.eventId, q: f.q, limit: '100' })}`),
   cancelEvent: (id) => http(`/admin/events/${e(id)}/cancel`, json('POST')),
   // No admin reports API yet: page shows "Coming soon" on the real API.
   listReports: notAvailable, resolveReport: notAvailable,

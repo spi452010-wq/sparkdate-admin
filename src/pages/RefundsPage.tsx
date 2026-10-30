@@ -1,20 +1,30 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../auth/AuthContext';
 import { QueryView } from '../components/QueryView';
 import { Table } from '../components/Table';
 import { ConfirmDialog, Modal } from '../components/Modal';
 import { Button, Field, Notice, StatusBadge } from '../components/ui';
-import { formatInr, type RefundItem, type RefundStatus } from '../api/types';
+import { formatInr, userLabel, type RefundItem, type RefundStatus } from '../api/types';
 
 const STATUSES: RefundStatus[] = ['requested', 'processing', 'processed', 'rejected', 'failed'];
 const canDecide = (r: RefundItem) => r.status === 'refund_requested' && (r.refund.status === 'requested' || r.refund.status === 'failed');
-const who = (r: RefundItem) => r.user.fullName ?? r.user.phone ?? r.user.id;
+const who = (r: RefundItem) => userLabel(r.user, r.user?.id);
 
 export function RefundsPage() {
   const api = useApi(); const qc = useQueryClient();
-  const [status, setStatus] = useState<RefundStatus | ''>('requested');
-  const q = useQuery({ queryKey: ['refunds', status], queryFn: () => api.listRefunds(status || undefined) });
+  // URL is the source of truth (?status=&q=), like Users and Events. No status param = requested; 'all' = every status.
+  const [sp, setSp] = useSearchParams();
+  const setParam = (k: string, v: string) => { const n = new URLSearchParams(sp); if (v) n.set(k, v); else n.delete(k); setSp(n, { replace: true }); };
+  const rawStatus = sp.get('status') ?? 'requested';
+  const status = (rawStatus === 'all' ? '' : rawStatus) as RefundStatus | '';
+  const search = sp.get('q') ?? '';
+  const [term, setTerm] = useState(search);
+  const debounced = useDebouncedValue(term.trim(), 300);
+  useEffect(() => { if (debounced !== search) setParam('q', debounced); }, [debounced]); // eslint-disable-line react-hooks/exhaustive-deps
+  const q = useQuery({ queryKey: ['refunds', status, search], queryFn: () => api.listRefunds({ status: status || undefined, q: search || undefined }) });
   const [approveT, setApproveT] = useState<RefundItem | null>(null);
   const [rejectT, setRejectT] = useState<RefundItem | null>(null);
   const [reason, setReason] = useState(''); const [reasonErr, setReasonErr] = useState<string>();
@@ -34,13 +44,18 @@ export function RefundsPage() {
     <>
       <h1>Refund requests</h1>
       {msg ? <Notice kind={msg.kind}>{msg.text}</Notice> : null}
+      <div className="row">
+      <div className="field inline"><label htmlFor="rq">Search refunds</label>
+        <input id="rq" type="search" placeholder="Name, phone or email" maxLength={80} value={term} onChange={(e) => setTerm(e.target.value)} /></div>
       <div className="field inline"><label htmlFor="rf">Refund status</label>
-        <select id="rf" value={status} onChange={(e) => setStatus(e.target.value as RefundStatus | '')}>
+        <select id="rf" value={status} onChange={(e) => setParam('status', e.target.value || 'all')}>
           <option value="">All</option>{STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select></div>
-      <QueryView query={q} isEmpty={(d) => d.items.length === 0} empty={{ title: 'No refund requests' }}>
+      </div>
+      <QueryView query={q} isEmpty={(d) => d.items.length === 0} empty={{ title: 'No refund requests', message: search ? `Nothing matches “${search}”.` : undefined }}>
         {(d) => <Table<RefundItem> caption="Refund requests" rows={d.items} rowKey={(r) => r.bookingId} columns={[
-          { key: 'u', header: 'User', render: (r) => <>{who(r)}{r.user.phone && r.user.fullName ? <div className="muted">{r.user.phone}</div> : null}</> },
+          { key: 'u', header: 'User', render: (r) => r.user?.fullName ? r.user.fullName : <code>{r.user?.id}</code> },
+          { key: 'ph', header: 'Phone', render: (r) => r.user?.phone ?? '-' },
           { key: 'e', header: 'Event', render: (r) => <>{r.event.title ?? r.event.id}{r.event.startsAt ? <div className="muted">{new Date(r.event.startsAt).toLocaleDateString('en-IN')}</div> : null}</> },
           { key: 'a', header: 'Amount', render: (r) => formatInr(r.amountInPaise) },
           { key: 'o', header: 'Play order ID', render: (r) => <code>{r.refund.playOrderId ?? r.playOrderId ?? '-'}</code> },
