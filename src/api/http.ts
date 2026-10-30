@@ -27,13 +27,12 @@ export function friendlyMessage(code: string, fallback: string, details?: Record
     case 'ORDER_ID_MISSING': return 'The Google Play order ID is missing for this payment.';
     case 'PLAY_UNAVAILABLE': return 'Google Play is not responding right now. The refund was marked failed; try again in a few minutes.';
     case 'PURCHASE_INVALID': return 'Google Play rejected this purchase or refund.';
-    case 'BOOKING_NOT_FOUND': return 'Booking not found for this purchase\'s user. Check the booking ID belongs to the same person.';
+    case 'BOOKING_NOT_FOUND': return 'No eligible booking: it must be this user\'s pending or expired booking for an event with the same Play product.';
     case 'PAYMENT_NOT_UNLINKED': return 'This purchase is already linked to a booking (or was refunded/voided). The list has been refreshed.';
-    case 'BOOKING_MISMATCH': return 'That booking cannot take this purchase: it must be the same user\'s pending or expired booking for the same Play product.';
-    case 'PRODUCT_MISMATCH': return 'That booking is for an event with a different Google Play product than this purchase.';
-    case 'BOOKING_NOT_PENDING': return 'That booking is already confirmed or closed. Pick the user\'s pending or expired booking.';
-    case 'PURCHASE_ALREADY_USED': return 'This Google Play purchase is already used for another booking.';
-    case 'EVENT_FULL_REFUNDED': return 'The event is full, so the purchase is being refunded through Google Play.';
+    case 'PRODUCT_MISMATCH': return 'Google Play reports a different product for this purchase than the event sells.';
+    case 'BOOKING_NOT_PENDING': return 'That booking is no longer pending or expired. Pick another booking.';
+    case 'PURCHASE_TOKEN_USED': return 'This Google Play purchase is already used for another booking.';
+    case 'EVENT_FULL': return 'No seat left in that event for this booking. The purchase stays unlinked; pick another booking or refund it.';
     case 'EVENT_NOT_FOUND': case 'NOT_FOUND': return 'Not found. It may have been removed, or you do not have access.';
     case 'VALIDATION_ERROR': return `Please check the details: ${fallback}`;
     case 'IDEMPOTENCY_IN_PROGRESS': return 'This request is still being processed. Wait a moment and refresh.';

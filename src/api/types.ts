@@ -65,14 +65,17 @@ export interface PlayPayment {
   orderId?: string; amountInPaise: number; status: PaymentStatus; acknowledged: boolean; createdAt: string; refundedAt?: string;
   /** Set when an unlinked purchase was still unlinked at reconcile (needs admin attention). */
   flaggedAt?: string;
-  /** Coming soon from the API: purchase time + 3 days (Play auto-refunds unacknowledged purchases after that). */
-  ackDeadline?: string;
+  /** Unlinked rows only: Play purchase time + 3 days (Play auto-refunds unacknowledged purchases after that). null if unknown. */
+  ackDeadline?: string | null;
 }
 /** POST /admin/payments/:id/link → { status, booking }. `pending` = Play purchase still pending (e.g. UPI). */
 export interface LinkPaymentResult { status: 'confirmed' | 'pending'; booking: { id: string; eventId: string; status: BookingStatus; amountInPaise?: number } }
-export const PLAY_ACK_WINDOW_MS = 3 * 24 * 3600_000;
-/** Play acknowledge deadline: server `ackDeadline`, else estimated as createdAt + 3 days. */
-export const ackDeadlineOf = (p: PlayPayment) => ({ at: new Date(p.ackDeadline ?? new Date(new Date(p.createdAt).getTime() + PLAY_ACK_WINDOW_MS).toISOString()), estimated: !p.ackDeadline });
+/** GET /admin/users/:id/bookings item (newest first). */
+export interface UserBooking {
+  id: string; status: BookingStatus; gender: Gender; amountInPaise: number; datesCompleted: number;
+  attendedAt: string | null; confirmedAt: string | null; createdAt: string; refund?: BookingRefund;
+  event: { id: string; title: string | null; startsAt: string | null; endsAt: string | null; city: string | null; playProductId: string | null };
+}
 export interface CancelSummary { cancelledPending: number; cancelledFree: number; refunded: number; refundFailed: number }
 export interface CancelEventResult { id: string; status: EventStatus; summary: CancelSummary }
 export interface DashboardStats {

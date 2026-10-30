@@ -31,6 +31,7 @@ export function createMockApi(latency = 250): AdminApi {
   const bookings: Booking[] = [
     { id: 'bkg_1', eventId: 'evt_1', userId: 'usr_01', userName: 'Aarav Shah', gender: 'male', status: 'confirmed', amountInPaise: 19900, datesCompleted: 0, createdAt: iso(-1) },
     { id: 'bkg_2', eventId: 'evt_1', userId: 'usr_02', userName: 'Diya Mehta', gender: 'female', status: 'confirmed', amountInPaise: 19900, datesCompleted: 0, createdAt: iso(-1) },
+    { id: 'bkg_6', eventId: 'evt_3', userId: 'usr_03', userName: 'Kabir Rao', gender: 'male', status: 'expired', amountInPaise: 24900, datesCompleted: 0, createdAt: iso(-4) },
     { id: 'bkg_5', eventId: 'evt_1', userId: 'usr_03', userName: 'Kabir Rao', gender: 'male', status: 'expired', amountInPaise: 19900, datesCompleted: 0, createdAt: iso(-2.5) },
   ];
   const reports: Report[] = [{ id: 'rpt_1', reporterId: 'usr_02', reporterName: 'Diya Mehta', reportedId: 'usr_03', reportedName: 'Kabir Rao', reason: 'inappropriate_behaviour', details: 'Rude on call', eventId: 'evt_3', status: 'open', createdAt: iso(-2) }];
@@ -38,7 +39,7 @@ export function createMockApi(latency = 250): AdminApi {
     { id: 'pay_1', userId: 'usr_01', bookingId: 'bkg_1', kind: 'ticket', productId: 'event_ticket_199', orderId: 'GPA.3301-1111-2222-00001', amountInPaise: 19900, status: 'verified', acknowledged: true, createdAt: iso(-1) },
     { id: 'pay_2', userId: 'usr_02', bookingId: null, kind: 'chat_pass', productId: 'chat_pass_monthly', orderId: 'GPA.3301-1111-2222-00002', amountInPaise: 29900, status: 'verified', acknowledged: true, createdAt: iso(-3) },
     { id: 'pay_3', userId: 'usr_04', bookingId: 'bkg_9', kind: 'ticket', productId: 'event_ticket_249', orderId: 'GPA.3312-0098-1122-55410', amountInPaise: 24900, status: 'verified', acknowledged: true, createdAt: iso(-4) },
-    { id: 'pay_5', userId: 'usr_03', bookingId: null, kind: 'ticket', productId: 'event_ticket_199', orderId: 'GPA.3301-1111-2222-00005', amountInPaise: 19900, status: 'unlinked', acknowledged: false, createdAt: iso(-2.5), flaggedAt: iso(-2.4) },
+    { id: 'pay_5', userId: 'usr_03', bookingId: null, kind: 'ticket', productId: 'event_ticket_199', orderId: 'GPA.3301-1111-2222-00005', amountInPaise: 19900, status: 'unlinked', acknowledged: false, createdAt: iso(-2.5), flaggedAt: iso(-2.4), ackDeadline: new Date(Date.now() + 12 * 3600_000).toISOString() },
     { id: 'pay_4', userId: 'usr_02', bookingId: 'bkg_2', kind: 'ticket', productId: 'event_ticket_199', orderId: 'GPA.3301-1111-2222-00003', amountInPaise: 19900, status: 'verified', acknowledged: false, createdAt: iso(-1) },
   ];
   const refunds: RefundItem[] = [
@@ -145,13 +146,23 @@ export function createMockApi(latency = 250): AdminApi {
       return page(payments.filter((p) => (!f.status || p.status === f.status) && (!f.userId || p.userId === f.userId) && (!ids || ids.has(p.userId)) && (!evBookings || (!!p.bookingId && evBookings.has(p.bookingId))))
         .map((p) => ({ ...clone(p), user: summary(p.userId) })));
     },
+    async listUserBookings(userId, f = {}) {
+      await wait(); adminOnly();
+      const all = bookings.filter((b) => b.userId === userId && (!f.status || b.status === f.status)).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .map((b) => { const ev = events.find((x) => x.id === b.eventId);
+          return { id: b.id, status: b.status, gender: b.gender, amountInPaise: b.amountInPaise, datesCompleted: b.datesCompleted, attendedAt: null, confirmedAt: null, createdAt: b.createdAt, refund: b.refund,
+            event: { id: b.eventId, title: ev?.title ?? null, startsAt: ev?.startsAt ?? null, endsAt: ev?.endsAt ?? null, city: ev?.city ?? null, playProductId: ev?.playProductId ?? null } }; });
+      const page = f.page ?? 1, limit = f.limit ?? 100;
+      return { items: all.slice((page - 1) * limit, page * limit), page, limit, total: all.length };
+    },
     async linkPayment(id, bookingId) {
       await wait(); adminOnly();
       const p = payments.find((x) => x.id === id && x.status === 'unlinked'); if (!p) fail(409, 'PAYMENT_NOT_UNLINKED', 'Payment is not unlinked');
-      const b = bookings.find((x) => x.id === bookingId && x.userId === p!.userId); if (!b) fail(404, 'BOOKING_NOT_FOUND', 'Booking not found');
-      const ev = events.find((x) => x.id === b!.eventId);
-      if (ev?.playProductId !== p!.productId) fail(400, 'PRODUCT_MISMATCH', 'Product mismatch');
-      if (!['pending', 'expired', 'cancelled'].includes(b!.status)) fail(409, 'BOOKING_NOT_PENDING', 'Booking is not pending');
+      // server: wrong user, status or product are all 404 (no existence leak)
+      const b = bookings.find((x) => x.id === bookingId && x.userId === p!.userId && ['pending', 'expired'].includes(x.status));
+      const ev = b && events.find((x) => x.id === b.eventId);
+      if (!b || ev?.playProductId !== p!.productId) fail(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+      if (b!.status === 'expired' && ev!.booked[b!.gender] >= ev!.capacity[b!.gender]) fail(409, 'EVENT_FULL', 'No seat left for this booking; payment stays unlinked');
       b!.status = 'confirmed'; b!.amountInPaise = p!.amountInPaise; p!.bookingId = b!.id; p!.status = 'verified'; p!.acknowledged = true;
       return { status: 'confirmed', booking: { id: b!.id, eventId: b!.eventId, status: b!.status, amountInPaise: b!.amountInPaise } };
     },

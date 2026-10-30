@@ -51,11 +51,10 @@ Approve/reject are allowed when booking `status = refund_requested` and `refund.
 
 ### Link an unlinked purchase (admin)
 `POST /admin/payments/:id/link` body `{ bookingId }` (strict, ObjectId), CSRF → `{ status: 'confirmed'|'pending', booking }`. The booking is confirmed, then the purchase is acknowledged with Google Play.
-- UI: "Link to booking" on `unlinked` rows (admin only) → dialog listing the user's pending/expired/cancelled bookings for events with the same `playProductId` (found via `GET /admin/events/:id/bookings`, since there is no bookings-by-user endpoint), or a manual booking ID (24-hex) → confirm → toast. Invalidates payments, stats, events and bookings.
-- Deadline: `ackDeadline` when present, else estimated as `createdAt + 3 days` (labelled "est."; for unlinked rows `createdAt` is the webhook time, so it's approximate). Countdown; red "Urgent" under 24 h.
+- Candidates: `GET /admin/users/:id/bookings?status=&page=&limit=` (admin; newest first; `{ items, total, page, limit }`; item `{ id, status, gender, amountInPaise, datesCompleted, attendedAt, confirmedAt, createdAt, refund?, event: { id, title, startsAt, endsAt, city, playProductId } }`). The dialog loads `limit=100`, keeps `pending`/`expired`, lists product matches first with a "Product match" badge, and disables other products. Manual booking ID (24-hex) stays as a fallback. Then confirm → toast; invalidates payments, stats, events and bookings.
+- Deadline: server `ackDeadline` (unlinked rows only; Play purchase time + 3 days). Countdown, red "Urgent" under 24 h; "Play deadline unknown" if null/missing.
 - Nav badge and dashboard tile: unlinked count from `GET /admin/payments?status=unlinked` (`total`).
-- Errors handled: 409 `PAYMENT_NOT_UNLINKED` (list refreshed), 409 `BOOKING_MISMATCH` (doc only), 404 `BOOKING_NOT_FOUND`, 400 `PRODUCT_MISMATCH`, 409 `BOOKING_NOT_PENDING`, 409 `PURCHASE_ALREADY_USED`, 409 `EVENT_FULL_REFUNDED`, 400 `PURCHASE_INVALID`, 503 `PLAY_UNAVAILABLE`.
-- Doc vs server (sparkdate-api e824208): the server never returns `BOOKING_MISMATCH` (wrong user → 404 `BOOKING_NOT_FOUND`, wrong product → 400 `PRODUCT_MISMATCH`, wrong status → 409 `BOOKING_NOT_PENDING`); it also accepts `cancelled` bookings; `status` can be `pending` (UPI); `ackDeadline` is not in `paymentOut` yet.
+- Link errors: 404 `BOOKING_NOT_FOUND` (wrong user, status not pending/expired, or different product), 409 `PAYMENT_NOT_UNLINKED` (list refreshed), 409 `EVENT_FULL` (no seat; payment stays unlinked), 409 `PURCHASE_TOKEN_USED`, 409 `BOOKING_NOT_PENDING` (race), 400 `PURCHASE_INVALID` / `PRODUCT_MISMATCH` (Play data), 503 `PLAY_UNAVAILABLE`.
 
 ### Search, filters and URL state (refunds and payments)
 - `q`: 1-80 chars after trim; case-insensitive plain-text match on the user's **name, phone or email** (not order/product ID); at most 200 matching users. The panel debounces typing (300 ms) and keeps it in the URL (`?q=`), like Users/Events.
